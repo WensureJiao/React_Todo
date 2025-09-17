@@ -11,6 +11,24 @@ import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 
+interface FormData {
+  title: string
+  subtitle: string
+  description: string
+  startTime: Date | undefined
+  endTime: Date | undefined
+  status: 'waiting' | 'progress' | 'done'
+}
+
+const initialFormData: FormData = {
+  title: '',
+  subtitle: '',
+  description: '',
+  startTime: undefined,
+  endTime: undefined,
+  status: 'waiting',
+}
+
 export function TodoEditor() {
   const {
     selectedTodo,
@@ -21,28 +39,12 @@ export function TodoEditor() {
     setIsEditing,
   } = useTodoStore()
 
-  // 表单状态
-  const [formData, setFormData] = useState({
-    title: '',
-    subtitle: '',
-    description: '',
-    startTime: undefined as Date | undefined,
-    endTime: undefined as Date | undefined,
-    status: 'waiting' as 'waiting' | 'progress' | 'done',
-  })
-
-  // 日期选择器状态
+  const [formData, setFormData] = useState<FormData>(initialFormData)
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [isStartCalendarOpen, setIsStartCalendarOpen] = useState(false)
   const [isEndCalendarOpen, setIsEndCalendarOpen] = useState(false)
-  
-  // 日历显示的月份状态
-  const [startCalendarMonth, setStartCalendarMonth] = useState<Date>(new Date())
-  const [endCalendarMonth, setEndCalendarMonth] = useState<Date>(new Date())
 
-  // 表单验证
-  const [errors, setErrors] = useState<Record<string, string>>({})
-
-  // 当选中待办事项变化时，更新表单数据
+  // 同步选中待办事项到表单
   useEffect(() => {
     if (selectedTodo && isEditing) {
       setFormData({
@@ -54,27 +56,18 @@ export function TodoEditor() {
         status: selectedTodo.status,
       })
     } else {
-      setFormData({
-        title: '',
-        subtitle: '',
-        description: '',
-        startTime: undefined,
-        endTime: undefined,
-        status: 'waiting',
-      })
+      setFormData(initialFormData)
     }
     setErrors({})
   }, [selectedTodo, isEditing])
 
   // 表单验证
-  const validateForm = () => {
+  const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
     
     if (!formData.title.trim()) {
       newErrors.title = '标题不能为空'
-    }
-    
-    if (formData.title.length > 100) {
+    } else if (formData.title.length > 100) {
       newErrors.title = '标题不能超过100个字符'
     }
     
@@ -94,9 +87,7 @@ export function TodoEditor() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!validateForm()) {
-      return
-    }
+    if (!validateForm()) return
 
     const todoData = {
       title: formData.title.trim(),
@@ -108,71 +99,64 @@ export function TodoEditor() {
     }
 
     if (isEditing && selectedTodo) {
-      // 更新现有待办事项
       updateTodo(selectedTodo.id, todoData)
-      // 显示成功提示
-      alert('待办事项已更新！')
     } else {
-      // 添加新待办事项
       addTodo(todoData)
-      // 显示成功提示
-      alert('待办事项已添加！')
     }
 
-    // 重置表单
     handleCancel()
   }
 
   // 处理取消
   const handleCancel = () => {
-    setFormData({
-      title: '',
-      subtitle: '',
-      description: '',
-      startTime: undefined,
-      endTime: undefined,
-      status: 'waiting',
-    })
+    setFormData(initialFormData)
     setErrors({})
     setSelectedTodo(null)
     setIsEditing(false)
   }
 
   // 处理输入变化
-  const handleInputChange = (field: string, value: string | Date | undefined) => {
+  const handleInputChange = (field: keyof FormData, value: string | Date | undefined) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-    // 清除对应字段的错误
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
     }
   }
 
-  // 键盘快捷键
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        if (e.key === 'Enter' && formData.title.trim()) {
-          handleSubmit(e as unknown as React.FormEvent)
-        } else if (e.key === 'Escape') {
-          handleCancel()
-        }
+  // 处理时间选择
+  const handleTimeSelect = (field: 'startTime' | 'endTime', date: Date | undefined) => {
+    if (date) {
+      const newDate = new Date(date)
+      const currentTime = formData[field]
+      if (currentTime) {
+        newDate.setHours(currentTime.getHours())
+        newDate.setMinutes(currentTime.getMinutes())
+      } else {
+        newDate.setHours(field === 'startTime' ? 9 : 18, 0)
       }
+      handleInputChange(field, newDate)
     }
+  }
 
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [formData.title])
+  // 处理时间输入
+  const handleTimeInput = (field: 'startTime' | 'endTime', timeString: string) => {
+    const [hours, minutes] = timeString.split(':').map(Number)
+    const baseDate = formData[field] || new Date()
+    const newDate = new Date(baseDate)
+    newDate.setHours(hours, minutes)
+    handleInputChange(field, newDate)
+  }
 
   return (
-    <div className="h-full flex flex-col bg-white rounded-lg shadow-sm border">
+    <div className="h-full flex flex-col bg-background rounded-lg shadow-sm border">
       {/* 头部 */}
       <div className="p-6 border-b">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">
+            <h2 className="text-2xl font-bold text-foreground">
               {isEditing ? '编辑待办事项' : '添加待办事项'}
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               快捷键：Ctrl+Enter 保存，Esc 取消
             </p>
           </div>
@@ -192,26 +176,22 @@ export function TodoEditor() {
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
         <div className="flex-1 p-6 space-y-6">
           {/* 标题 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              标题 *
-            </label>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">标题 *</label>
             <Input
               value={formData.title}
               onChange={(e) => handleInputChange('title', e.target.value)}
               placeholder="输入待办事项标题"
-              className={cn(errors.title && 'border-red-500')}
+              className={cn(errors.title && 'border-destructive')}
             />
             {errors.title && (
-              <p className="text-sm text-red-600 mt-1">{errors.title}</p>
+              <p className="text-sm text-destructive">{errors.title}</p>
             )}
           </div>
 
           {/* 副标题 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              副标题
-            </label>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">副标题</label>
             <Input
               value={formData.subtitle}
               onChange={(e) => handleInputChange('subtitle', e.target.value)}
@@ -220,30 +200,28 @@ export function TodoEditor() {
           </div>
 
           {/* 描述 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              描述
-            </label>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">描述</label>
             <Textarea
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
               placeholder="输入待办事项描述（可选）"
               rows={4}
-              className={cn(errors.description && 'border-red-500')}
+              className={cn(errors.description && 'border-destructive')}
             />
             {errors.description && (
-              <p className="text-sm text-red-600 mt-1">{errors.description}</p>
+              <p className="text-sm text-destructive">{errors.description}</p>
             )}
           </div>
 
           {/* 状态 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              状态
-            </label>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">状态</label>
             <Select
               value={formData.status}
-              onValueChange={(value: 'waiting' | 'progress' | 'done') => handleInputChange('status', value)}
+              onValueChange={(value: 'waiting' | 'progress' | 'done') => 
+                handleInputChange('status', value)
+              }
             >
               <SelectTrigger>
                 <SelectValue />
@@ -257,10 +235,8 @@ export function TodoEditor() {
           </div>
 
           {/* 开始时间 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              开始时间
-            </label>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">开始时间</label>
             <Popover open={isStartCalendarOpen} onOpenChange={setIsStartCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -272,7 +248,7 @@ export function TodoEditor() {
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {formData.startTime ? (
-                    format(formData.startTime, "yyyy年MM月dd日", { locale: zhCN })
+                    format(formData.startTime, "yyyy年MM月dd日 HH:mm", { locale: zhCN })
                   ) : (
                     "选择开始时间（可选）"
                   )}
@@ -282,68 +258,40 @@ export function TodoEditor() {
                 <Calendar
                   mode="single"
                   selected={formData.startTime}
-                  month={startCalendarMonth}
-                  onMonthChange={setStartCalendarMonth}
-                  onSelect={(date) => {
-                    if (date) {
-                      // 保持原有的时间，只更新日期
-                      const newDate = new Date(date)
-                      if (formData.startTime) {
-                        newDate.setHours(formData.startTime.getHours())
-                        newDate.setMinutes(formData.startTime.getMinutes())
-                      } else {
-                        newDate.setHours(9, 0) // 默认9:00
-                      }
-                      handleInputChange('startTime', newDate)
-                    }
-                    setIsStartCalendarOpen(false)
-                  }}
-                  disabled={(date) => {
-                    // 根据当前日历显示的月份来限制选择
-                    const displayMonth = startCalendarMonth.getMonth()
-                    const displayYear = startCalendarMonth.getFullYear()
-                    return date.getMonth() !== displayMonth || date.getFullYear() !== displayYear
-                  }}
+                  onSelect={(date) => handleTimeSelect('startTime', date)}
                   initialFocus
                 />
-                {formData.startTime && (
-                  <div className="p-3 border-t">
+                <div className="p-3 border-t">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <label className="text-sm font-medium">时间:</label>
                       <input
                         type="time"
-                        value={formData.startTime ? `${formData.startTime.getHours().toString().padStart(2, '0')}:${formData.startTime.getMinutes().toString().padStart(2, '0')}` : ''}
-                        onChange={(e) => {
-                          const [hours, minutes] = e.target.value.split(':').map(Number)
-                          const newDate = new Date(formData.startTime!)
-                          newDate.setHours(hours, minutes)
-                          handleInputChange('startTime', newDate)
-                        }}
-                        className="px-2 py-1 border rounded text-sm"
+                        value={formData.startTime ? 
+                          `${formData.startTime.getHours().toString().padStart(2, '0')}:${formData.startTime.getMinutes().toString().padStart(2, '0')}` : 
+                          '09:00'
+                        }
+                        onChange={(e) => handleTimeInput('startTime', e.target.value)}
+                        className="px-2 py-1 border rounded text-sm bg-background text-foreground"
                       />
                     </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsStartCalendarOpen(false)}
+                    >
+                      完成
+                    </Button>
                   </div>
-                )}
+                </div>
               </PopoverContent>
             </Popover>
-            {formData.startTime && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => handleInputChange('startTime', undefined)}
-                className="mt-2 text-red-600 hover:text-red-700"
-              >
-                清除开始时间
-              </Button>
-            )}
           </div>
 
           {/* 结束时间 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              结束时间
-            </label>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground">结束时间</label>
             <Popover open={isEndCalendarOpen} onOpenChange={setIsEndCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -355,7 +303,7 @@ export function TodoEditor() {
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {formData.endTime ? (
-                    format(formData.endTime, "yyyy年MM月dd日", { locale: zhCN })
+                    format(formData.endTime, "yyyy年MM月dd日 HH:mm", { locale: zhCN })
                   ) : (
                     "选择结束时间（可选）"
                   )}
@@ -365,71 +313,52 @@ export function TodoEditor() {
                 <Calendar
                   mode="single"
                   selected={formData.endTime}
-                  month={endCalendarMonth}
-                  onMonthChange={setEndCalendarMonth}
-                  onSelect={(date) => {
-                    if (date) {
-                      // 保持原有的时间，只更新日期
-                      const newDate = new Date(date)
-                      if (formData.endTime) {
-                        newDate.setHours(formData.endTime.getHours())
-                        newDate.setMinutes(formData.endTime.getMinutes())
-                      } else {
-                        newDate.setHours(18, 0) // 默认18:00
-                      }
-                      handleInputChange('endTime', newDate)
-                    }
-                    setIsEndCalendarOpen(false)
-                  }}
+                  onSelect={(date) => handleTimeSelect('endTime', date)}
                   disabled={(date) => {
-                    // 根据当前日历显示的月份来限制选择
-                    const displayMonth = endCalendarMonth.getMonth()
-                    const displayYear = endCalendarMonth.getFullYear()
-                    const isNotDisplayMonth = date.getMonth() !== displayMonth || date.getFullYear() !== displayYear
-                    const isBeforeStart = formData.startTime ? date < formData.startTime : false
-                    return isNotDisplayMonth || isBeforeStart
+                    if (!formData.startTime) return false
+                    // 只禁用开始时间之前的日期，同一天允许选择
+                    const startDate = new Date(formData.startTime)
+                    startDate.setHours(0, 0, 0, 0)
+                    const compareDate = new Date(date)
+                    compareDate.setHours(0, 0, 0, 0)
+                    return compareDate < startDate
                   }}
                   initialFocus
                 />
-                {formData.endTime && (
-                  <div className="p-3 border-t">
+                <div className="p-3 border-t">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <label className="text-sm font-medium">时间:</label>
                       <input
                         type="time"
-                        value={formData.endTime ? `${formData.endTime.getHours().toString().padStart(2, '0')}:${formData.endTime.getMinutes().toString().padStart(2, '0')}` : ''}
-                        onChange={(e) => {
-                          const [hours, minutes] = e.target.value.split(':').map(Number)
-                          const newDate = new Date(formData.endTime!)
-                          newDate.setHours(hours, minutes)
-                          handleInputChange('endTime', newDate)
-                        }}
-                        className="px-2 py-1 border rounded text-sm"
+                        value={formData.endTime ? 
+                          `${formData.endTime.getHours().toString().padStart(2, '0')}:${formData.endTime.getMinutes().toString().padStart(2, '0')}` : 
+                          '18:00'
+                        }
+                        onChange={(e) => handleTimeInput('endTime', e.target.value)}
+                        className="px-2 py-1 border rounded text-sm bg-background text-foreground"
                       />
                     </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEndCalendarOpen(false)}
+                    >
+                      完成
+                    </Button>
                   </div>
-                )}
+                </div>
               </PopoverContent>
             </Popover>
-            {formData.endTime && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => handleInputChange('endTime', undefined)}
-                className="mt-2 text-red-600 hover:text-red-700"
-              >
-                清除结束时间
-              </Button>
-            )}
             {errors.endTime && (
-              <p className="text-sm text-red-600 mt-1">{errors.endTime}</p>
+              <p className="text-sm text-destructive">{errors.endTime}</p>
             )}
           </div>
         </div>
 
         {/* 底部按钮 */}
-        <div className="p-6 border-t bg-gray-50">
+        <div className="p-6 border-t bg-muted/50">
           <div className="flex gap-3">
             <Button
               type="submit"

@@ -5,7 +5,7 @@ import { TodoEditor } from './components/TodoEditor'
 
 function App() {
   return (
-    <div className="h-screen bg-gray-100 flex">
+    <div className="h-screen bg-background flex">
       {/* 左侧：待办事项列表 */}
       <div className="flex-1">
         <TodoList />
