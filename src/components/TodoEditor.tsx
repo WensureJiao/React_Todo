@@ -6,9 +6,13 @@ import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Calendar } from './ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
+/// 1. 图标
 import { CalendarIcon, Plus, Save, X } from 'lucide-react'
+/// 2. 日期格式化
 import { format } from 'date-fns'
+/// 3. 本地化
 import { zhCN } from 'date-fns/locale'
+/// 4. 工具函数
 import { cn } from '@/lib/utils'
 
 interface FormData {
@@ -28,17 +32,17 @@ const initialFormData: FormData = {
   endTime: undefined,
   status: 'waiting',
 }
-
+///全局状态
 export function TodoEditor() {
   const {
-    selectedTodo,
-    isEditing,
-    addTodo,
-    updateTodo,
-    setSelectedTodo,
-    setIsEditing,
+    selectedTodo,    // 当前选中的待办事项
+    isEditing,       // 是否处于编辑模式
+    addTodo,         // 添加待办事项
+    updateTodo,      // 更新待办事项
+    setSelectedTodo, // 设置选中的待办事项
+    setIsEditing,    // 设置编辑模式
   } = useTodoStore()
-
+//本地状态
   const [formData, setFormData] = useState<FormData>(initialFormData)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isStartCalendarOpen, setIsStartCalendarOpen] = useState(false)
@@ -47,6 +51,7 @@ export function TodoEditor() {
   // 同步选中待办事项到表单
   useEffect(() => {
     if (selectedTodo && isEditing) {
+      ///同步选中待办事项到表单
       setFormData({
         title: selectedTodo.title,
         subtitle: selectedTodo.subtitle || '',
@@ -56,39 +61,42 @@ export function TodoEditor() {
         status: selectedTodo.status,
       })
     } else {
+      ///新增模式，重置表单
       setFormData(initialFormData)
     }
-    setErrors({})
+    setErrors({}) ///重置错误信息
   }, [selectedTodo, isEditing])
 
   // 表单验证
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
-    
+    ///标题不能为空
     if (!formData.title.trim()) {
       newErrors.title = '标题不能为空'
     } else if (formData.title.length > 100) {
       newErrors.title = '标题不能超过100个字符'
     }
-    
+    ///描述不能超过500个字符
     if (formData.description && formData.description.length > 500) {
       newErrors.description = '描述不能超过500个字符'
     }
-    
+    ///结束时间必须晚于开始时间
     if (formData.startTime && formData.endTime && formData.endTime <= formData.startTime) {
       newErrors.endTime = '结束时间必须晚于开始时间'
     }
     
     setErrors(newErrors)
+    ///如果没有任何错误，返回 true
     return Object.keys(newErrors).length === 0
   }
 
   // 处理表单提交
   const handleSubmit = (e: React.FormEvent) => {
+    ///阻止默认行为
     e.preventDefault()
-    
+    ///如果表单验证不通过，返回
     if (!validateForm()) return
-
+///创建待办事项数据
     const todoData = {
       title: formData.title.trim(),
       subtitle: formData.subtitle.trim() || undefined,
@@ -97,13 +105,14 @@ export function TodoEditor() {
       endTime: formData.endTime,
       status: formData.status,
     }
-
+///编辑模式，更新待办事项
     if (isEditing && selectedTodo) {
       updateTodo(selectedTodo.id, todoData)
     } else {
+      ///新增模式，添加待办事项
       addTodo(todoData)
     }
-
+///取消编辑模式
     handleCancel()
   }
 
@@ -129,11 +138,14 @@ export function TodoEditor() {
       const newDate = new Date(date)
       const currentTime = formData[field]
       if (currentTime) {
+        /// 如果之前已经有时间，就沿用之前的“时分”，只更新年月日
         newDate.setHours(currentTime.getHours())
         newDate.setMinutes(currentTime.getMinutes())
       } else {
+        /// 如果之前没有时间，就默认设置为开始时间9点，结束时间18点
         newDate.setHours(field === 'startTime' ? 9 : 18, 0)
       }
+      ///更新表单
       handleInputChange(field, newDate)
     }
   }
@@ -363,7 +375,6 @@ export function TodoEditor() {
             <Button
               type="submit"
               className="flex-1"
-              disabled={!formData.title.trim()}
             >
               {isEditing ? (
                 <>

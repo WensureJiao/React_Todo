@@ -5,7 +5,7 @@ import { Badge } from './ui/badge'
 import { Calendar, Clock, Trash2, Edit, AlertCircle, Sun, Moon } from 'lucide-react'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { useTheme } from '../contexts/ThemeContext'
+import { useThemeStore } from '../store/themeStore'
 import { cn } from '@/lib/utils'
 
 const statusConfig = {
@@ -36,6 +36,7 @@ const statusConfig = {
 }
 
 export function TodoList() {
+  /// 1. 状态管理 - 从Zustand获取数据和方法
   const {
     getFilteredTodos,
     sortBy,
@@ -47,14 +48,19 @@ export function TodoList() {
     clearAll,
     getTodosCount,
   } = useTodoStore()
-
-  const { theme, setTheme } = useTheme()
+/// 2. 主题管理 - 从Zustand获取数据和方法
+  const { theme, toggleTheme } = useThemeStore()
+  /// 3. 数据和方法
   const todos = getFilteredTodos()
+  /// 4. 计算属性
   const counts = getTodosCount()
 
-  // 检查是否过期
+  /// 5. 检查是否过期
+  ///如果没有传入 endTime（即 undefined），说明任务没有截止时间，那它肯定不算“过期”。
+///所以直接返回 false
   const isOverdue = (endTime?: Date) => {
     if (!endTime) return false
+
     return endTime < new Date() && todos.find(todo => todo.endTime === endTime)?.status !== 'done'
   }
 
@@ -81,7 +87,7 @@ export function TodoList() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                onClick={toggleTheme}
               >
                 {theme === 'light' ? <Moon className="w-4 h-4 mr-2" /> : <Sun className="w-4 h-4 mr-2" />}
                 {theme === 'light' ? '深色主题' : '浅色主题'}
