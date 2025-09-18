@@ -15,7 +15,7 @@ export const useThemeStore = create<ThemeState>()(
       theme: 'light',
       
       setTheme: (theme) => {
-        set({ theme })
+        set({ theme })//更新store中的theme
         // 应用主题到DOM
         if (theme === 'dark') {
           document.documentElement.classList.add('dark')
@@ -29,6 +29,7 @@ export const useThemeStore = create<ThemeState>()(
         get().setTheme(newTheme)
       },
     }),
+    //持久化存储
     {
       name: 'theme-storage',
       onRehydrateStorage: () => (state) => {

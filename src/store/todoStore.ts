@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { generateRandomTodo } from '../lib/randomTodoGenerator'
 
 export interface Todo {
   id: string
@@ -27,6 +28,7 @@ interface TodoState {
   updateTodo: (id: string, updates: Partial<Todo>) => void
   deleteTodo: (id: string) => void
   clearAll: () => void
+  addRandomTodo: () => void
   
   // UI状态
   setSortBy: (sortBy: SortType) => void
@@ -77,6 +79,17 @@ export const useTodoStore = create<TodoState>()(
       
       clearAll: () => {
         set({ todos: [], selectedTodo: null })
+      },
+      
+      addRandomTodo: () => {
+        const randomTodoData = generateRandomTodo()
+        const newTodo: Todo = {
+          ...randomTodoData,
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+        set((state) => ({ todos: [...state.todos, newTodo] }))
       },
       
       // UI状态

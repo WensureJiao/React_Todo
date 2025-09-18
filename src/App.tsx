@@ -1,7 +1,6 @@
 
-import './App.css'
-import { TodoList } from './components/TodoList'
-import { TodoEditor } from './components/TodoEditor'
+import { TodoList } from './components/todo/TodoList'
+import { TodoEditor } from './components/todo/TodoEditor'
 
 function App() {
   return (
